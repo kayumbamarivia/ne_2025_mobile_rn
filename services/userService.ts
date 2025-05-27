@@ -23,9 +23,9 @@ interface StoredUser extends UserResponse {
 }
 
 class UserService {
-  private baseUrl: string;
+  private readonly baseUrl: string;
   private readonly USER_KEY = '@user';
-  private api;
+  private readonly api;
 
   constructor() {
     this.baseUrl = API_CONFIG.BASE_URL;

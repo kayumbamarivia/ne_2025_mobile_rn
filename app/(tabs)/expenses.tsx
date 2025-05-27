@@ -1,7 +1,7 @@
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { FontAwesome, MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { expenseService } from '../../services/expenseService';
 import { Expense } from '../../types/expense';
@@ -27,11 +27,14 @@ export default function ExpensesScreen() {
     try {
       const data = await expenseService.getAllExpenses(user.id);
       setExpenses(data);
-    } catch (error) {
+    } catch (error: any) {
+      // Log the error for debugging
+      console.error('Failed to fetch expenses:', error);
+
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: 'Failed to fetch expenses',
+        text2: error?.message ? `Failed to fetch expenses: ${error.message}` : 'Failed to fetch expenses',
       });
     } finally {
       setLoading(false);
@@ -68,6 +71,12 @@ export default function ExpensesScreen() {
       </View>
     );
   }
+
+  // Extracted empty state message
+  const emptyStateMessage =
+    selectedCategory === 'all'
+      ? 'Tap the + button to add your first expense'
+      : `No expenses in ${EXPENSE_CATEGORIES.find((c) => c.id === selectedCategory)?.label} category`;
 
   return (
     <View className="h-full bg-[#f8faf7]">
@@ -136,11 +145,9 @@ export default function ExpensesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {loading ? (
           <View className="mt-8 items-center justify-center">
-            <ActivityIndicator size="large" color="#8cb173" />
-          </View>
-        ) : filteredExpenses.length === 0 ? (
-          <View className="mt-16 items-center px-4">
-            <MaterialIcons name="receipt" size={48} color="#a0aec0" />
+            <Text className="mt-2 text-center text-gray-500">
+              {emptyStateMessage}
+            </Text>
             <Text className="mt-4 text-center text-lg text-gray-600">No expenses found</Text>
             <Text className="mt-2 text-center text-gray-500">
               {selectedCategory === 'all'
@@ -173,10 +180,16 @@ export default function ExpensesScreen() {
                   </View>
                   <View>
                     <Text className="text-lg font-semibold text-gray-800">{expense.name}</Text>
-                    <Text className="text-sm text-gray-500 capitalize">
-                      {EXPENSE_CATEGORIES.find((c) => c.id === expense.category)?.label.toLowerCase() ||
-                        expense.category.toLowerCase()}
-                    </Text>
+                    {(() => {
+                      const categoryLabel =
+                        EXPENSE_CATEGORIES.find((c) => c.id === expense.category)?.label?.toLowerCase() ??
+                        expense.category.toLowerCase();
+                      return (
+                        <Text className="text-sm text-gray-500 capitalize">
+                          {categoryLabel}
+                        </Text>
+                      );
+                    })()}
                   </View>
                 </View>
                 <View className="items-end">

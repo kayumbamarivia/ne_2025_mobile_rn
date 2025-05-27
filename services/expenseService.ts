@@ -14,15 +14,24 @@ class ExpenseService {
     });
   }
 
-  async createExpense(expenseData: CreateExpenseData): Promise<Expense> {
-    try {
-      const { data } = await this.api.post('/expenses', expenseData);
-      return data;
-    } catch (error) {
-      console.error('Create expense error:', error);
-      throw error;
+ async createExpense(expenseData: CreateExpenseData): Promise<Expense> {
+  try {
+    const today = new Date();
+    const expenseDate = new Date(expenseData.date);
+
+    if (expenseDate > today) {
+      throw new Error('Expense date cannot be in the future.');
     }
+
+    const { data } = await this.api.post('/expenses', expenseData);
+    return data;
+  } catch (error) {
+    console.error('Create expense error:', error);
+    throw error;
   }
+}
+
+
 
   async getExpense(id: string): Promise<Expense> {
     try {

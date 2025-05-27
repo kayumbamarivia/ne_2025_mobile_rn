@@ -105,7 +105,7 @@ const LoginScreen = () => {
           New to VaultWise?{' '}
           <Text
             className="font-bold text-teal-900 underline"
-            onPress={() => router.replace('/auth/signup')}
+            onPress={() => router.replace('/auth/login')}
           >
             Sign Up
           </Text>

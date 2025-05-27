@@ -11,14 +11,18 @@ import Toast from 'react-native-toast-message';
 import { EXPENSE_CATEGORIES } from '../utils/constants';
 import { FontAwesome } from '@expo/vector-icons';
 
+// Enhanced validation schema with date validation
 const expenseSchema = Yup.object({
   name: Yup.string().required('Name is required'),
   amount: Yup.number()
     .required('Amount is required')
     .positive('Amount must be positive'),
-  description: Yup.string(),
+  description: Yup.string().default(''),
   category: Yup.string().required('Category is required'),
-  date: Yup.string().required('Date is required'),
+  date: Yup.date()
+    .required('Date is required')
+    .max(new Date(), 'Date cannot be in the future')
+    .typeError('Please enter a valid date'),
 });
 
 type ExpenseFormData = {
@@ -30,15 +34,16 @@ type ExpenseFormData = {
 };
 
 type ExpenseFormModalProps = {
-  visible: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
+  readonly visible: boolean;
+  readonly onClose: () => void;
+  readonly onSuccess: () => void;
 };
 
 export default function ExpenseFormModal({ visible, onClose, onSuccess }: ExpenseFormModalProps) {
   const { user } = useUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [apiError, setApiError] = useState('');
 
   const {
     control,
@@ -50,35 +55,52 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
     resolver: yupResolver(expenseSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
+      description: '',
     },
   });
 
   const onSubmit = async (data: ExpenseFormData) => {
-    if (!user) return;
+    if (!user) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'User not authenticated',
+      });
+      return;
+    }
 
     setIsSubmitting(true);
+    setApiError('');
+
     try {
       const expenseData = {
         ...data,
         userId: user.id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        amount: Number(data.amount),
+        date: new Date(data.date).toISOString(),
       };
 
       await expenseService.createExpense(expenseData);
+      
       Toast.show({
         type: 'success',
         text1: 'Success',
         text2: 'Expense added successfully',
       });
+      
       reset();
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Failed to add expense:', error);
+      
+      const errorMessage = error?.message || 'Failed to add expense';
+      setApiError(errorMessage);
+      
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: 'Failed to add expense',
+        text2: errorMessage,
       });
     } finally {
       setIsSubmitting(false);
@@ -90,7 +112,8 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
       visible={visible}
       animationType="slide"
       transparent={true}
-      onRequestClose={onClose}>
+      onRequestClose={onClose}
+    >
       <View className="flex-1 justify-end bg-black/50">
         <View className="h-[80%] rounded-t-3xl bg-[#F9F9FF] p-6">
           <View className="mb-4 flex-row items-center justify-between">
@@ -101,6 +124,10 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
           </View>
 
           <ScrollView className="flex-1">
+            {apiError && (
+              <Text className="mb-4 text-center text-red-500">{apiError}</Text>
+            )}
+
             <Controller
               control={control}
               name="name"
@@ -111,6 +138,7 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
                   value={value}
                   onChangeText={onChange}
                   error={errors.name?.message}
+                  iconName="edit"
                 />
               )}
             />
@@ -123,9 +151,10 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
                   label="Amount"
                   placeholder="Enter amount"
                   value={value?.toString()}
-                  onChangeText={(text) => onChange(parseFloat(text) || 0)}
+                  onChangeText={(text) => onChange(text ? parseFloat(text) : 0)}
                   keyboardType="numeric"
                   error={errors.amount?.message}
+                  iconName="dollar-sign"
                 />
               )}
             />
@@ -135,11 +164,12 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
               name="description"
               render={({ field: { onChange, value } }) => (
                 <InputField
-                  label="Description"
+                  label="Description (Optional)"
                   placeholder="Enter description"
                   value={value}
                   onChangeText={onChange}
                   error={errors.description?.message}
+                  iconName="file-text"
                 />
               )}
             />
@@ -150,7 +180,8 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
                 onPress={() => setShowCategoryPicker(!showCategoryPicker)}
                 className={`flex-row items-center rounded-xl border px-4 py-3 ${
                   errors.category ? 'border-red-500' : 'border-gray-300'
-                } bg-background`}>
+                } bg-background`}
+              >
                 <Controller
                   control={control}
                   name="category"
@@ -159,12 +190,14 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
                       {value ? (
                         <View className="flex-row items-center">
                           <FontAwesome
-                            name={EXPENSE_CATEGORIES.find((c) => c.id === value)?.icon || 'money'}
+                            name={
+                              EXPENSE_CATEGORIES.find((c) => c.id === value)?.icon ?? 'money'
+                            }
                             size={20}
                             color="#6366F1"
                           />
                           <Text className="ml-2 text-text">
-                            {EXPENSE_CATEGORIES.find((c) => c.id === value)?.label || 'Select Category'}
+                            {EXPENSE_CATEGORIES.find((c) => c.id === value)?.label ?? 'Select Category'}
                           </Text>
                         </View>
                       ) : (
@@ -188,8 +221,9 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
                       setValue('category', category.id);
                       setShowCategoryPicker(false);
                     }}
-                    className="flex-row items-center rounded-lg px-4 py-3 active:bg-gray-100">
-                    <FontAwesome name={category.icon} size={20} color="#6366F1" />
+                    className="flex-row items-center rounded-lg px-4 py-3 active:bg-gray-100"
+                  >
+                    <FontAwesome name={category.icon as any} size={20} color="#6366F1" />
                     <Text className="ml-2 text-text">{category.label}</Text>
                   </TouchableOpacity>
                 ))}
@@ -206,6 +240,7 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
                   value={value}
                   onChangeText={onChange}
                   error={errors.date?.message}
+                  iconName="calendar"
                 />
               )}
             />
@@ -213,7 +248,7 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
             <Button
               title="Add Expense"
               onPress={handleSubmit(onSubmit)}
-              className="mt-4 rounded-lg bg-primary-dark py-4"
+              className="mt-4 rounded-lg bg-[#8cb173] py-4"
               loading={isSubmitting}
               disabled={isSubmitting}
             />
@@ -222,4 +257,4 @@ export default function ExpenseFormModal({ visible, onClose, onSuccess }: Expens
       </View>
     </Modal>
   );
-} 
+}
