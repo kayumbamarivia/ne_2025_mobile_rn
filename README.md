@@ -1,4 +1,4 @@
-# FinTrack - Personal Finance Tracker
+# VaultWise - Personal Finance Tracker
 
 A mobile application for tracking personal finances, built with React Native and Expo.
 
@@ -6,7 +6,6 @@ A mobile application for tracking personal finances, built with React Native and
 
 ### Authentication
 - `/auth/login` - User login page
-- `/auth/signup` - User registration page
 
 ### Main Navigation (Tabs)
 - `/` - Home page with dashboard and summary
@@ -17,28 +16,6 @@ A mobile application for tracking personal finances, built with React Native and
 - `/expense/[id]` - Individual expense details page
 
 ## API Endpoints
-
-### User Management
-- `POST /users` - Register a new user
-  - Request Body:
-    ```typescript
-    {
-      firstName: string;
-      lastName: string;
-      username: string;
-      password: string;
-    }
-    ```
-  - Response:
-    ```typescript
-    {
-      id: string;
-      firstName: string;
-      lastName: string;
-      username: string;
-      createdAt: string;
-    }
-    ```
 
 - `GET /users` - Get user by username
   - Query Parameters:
@@ -52,7 +29,6 @@ A mobile application for tracking personal finances, built with React Native and
 ## Features
 
 ### Authentication
-- User registration with first name, last name, username, and password
 - User login with username and password
 - Persistent login state using AsyncStorage
 
